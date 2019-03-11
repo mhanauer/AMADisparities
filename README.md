@@ -1,4 +1,3 @@
-# AMADisparities
 ---
 title: "AMA Results"
 output:
@@ -273,11 +272,44 @@ Logit Final Model
 Do some sensitivty analyses
 ```{r}
 model_final = glm(AMA  ~ AgeAt_ASSESS_Date + Sex_Orien + Race + Gender + Parents + Partner + Trouble, family = "binomial", data = AMAData_analysis_complete)
+library(konfound)
 
+## Doesn't seem to work with non-linear models
+konfound(model_final, Sex_Orien)
 summary(model_final)
 ```
 Do Bayesian version and evaluate which of three effects is different each other
 Do linear regression with subset data for interventions (intervention is the difference between parameter estimates)
+```{r}
+library(MCMCpack)
+model_bayes = MCMClogit(AMA  ~AgeAt_ASSESS_Date + Sex_Orien + Race + Gender + Parents + Partner + Trouble, data = AMAData_analysis_complete)
+
+summary(model_bayes)
+
+
+```
+Get quantiles to get the odds ratios to evaluate practically significant differences
+```{r}
+sum_model_bayes = summary(model_bayes)
+quant_exp= exp(sum_model_bayes$quantiles)
+quant_exp
+```
+Now grab the distributions of the Sex_Orien and gender
+```{r}
+sex_orien_gender_posts = model_bayes[,c(3,5)]
+sex_orien_gender_posts = data.frame(sex_orien_gender_posts)
+head(sex_orien_gender_posts)
+library(BEST)
+
+sex_orien_gender_posts_sample = sex_orien_gender_posts[sample(nrow(sex_orien_gender_posts),500),]
+sex_orien_gender_posts_sample = exp(sex_orien_gender_posts_sample)
+
+test_Best =  BESTmcmc(sex_orien_gender_posts_sample$Sex_Orien, sex_orien_gender_posts_sample$Gender)
+test_Best
+plot(test_Best)
+
+summary(test_Best)
+```
 
 
 ################################################################
@@ -439,14 +471,3 @@ re_model_Gender_No_trouble = zelig(AMA ~ Gender*No_trouble + Sex_Orien  + Race +
 
 summary(re_model_Gender_No_trouble)
 ```
-
-
-
-
-
-
-
-
-
-
-
