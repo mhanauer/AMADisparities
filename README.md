@@ -149,9 +149,16 @@ describe.factor(AMAData_analysis_complete$AMA)
 
 summary(re_model)
 
-logit_model = glm(AMA ~ AgeAt_ASSESS_Date + Sex_Orien + Race + Gender + Vet + Trouble + Edu, data = AMAData_analysis_complete, family = "binomial")
+logit_model = glm(AMA ~  scale(AgeAt_ASSESS_Date, center = TRUE, scale = FALSE)*Trouble + Sex_Orien + Race + Gender + Vet + Trouble + Edu, data = AMAData_analysis_complete, family = "binomial")
 
 summary(logit_model)
+install.packages("interactions")
+library(interactions)
+
+logit_model_no_vet = glm(AMA ~  AgeAt_ASSESS_Date*Trouble + Sex_Orien + Race + Gender  + Trouble + Edu, data = AMAData_analysis_complete, family = "binomial")
+summary(logit_model_no_vet)
+interact_plot(logit_model_no_vet, pred = "AgeAt_ASSESS_Date", "Trouble", data = AMAData_analysis_complete)
+
 ```
 Do Bayesian version and evaluate which of three effects is different each other
 Do linear regression with subset data for interventions (intervention is the difference between parameter estimates)
