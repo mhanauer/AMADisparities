@@ -85,7 +85,7 @@ describe.factor(AMA)
 
 describe.factor(AMAData$Edu)
 ### Those with less than and a high school versus everyone else so 1 and 0 versus everyone else
-AMAData$Edu = ifelse(AMAData$Edu < 2,1,0)
+AMAData$Edu = ifelse(AMAData$Edu < 1,1,0)
 describe.factor(AMAData$Edu)
 
 ### Now get veteran status
@@ -97,7 +97,11 @@ describe.factor(AMAData$Vet)
 ### Just grab the variables that you want
 
 head(AMAData)
-
+describe(AMAData$AgeAt_ASSESS_Date)
+range(AMAData$AgeAt_ASSESS_Date, na.rm = TRUE)
+#### Some values below 18 need to get rid of them
+AMAData$AgeAt_ASSESS_Date = ifelse(AMAData$AgeAt_ASSESS_Date < 18, NA, AMAData$AgeAt_ASSESS_Date)
+range(AMAData$AgeAt_ASSESS_Date, na.rm = TRUE)
 
 AMAData_analysis = AMAData[c("AgeAt_ASSESS_Date", "Sex_Orien", "Race", "Gender", "Trouble", "Edu", "Vet", "AMA")]
 
@@ -109,9 +113,7 @@ Now do missing data analysis
 ```{r}
 AMAData_analysis_complete = na.omit(AMAData_analysis)
 dim(AMAData_analysis_complete)
-
-1-dim(AMAData_analysis_complete)[1]/dim(AMAData_analysis)[1]
-
+1-(dim(AMAData_analysis_complete)[1]/dim(AMAData_analysis)[1])
 TestMCARNormality(AMAData_analysis)
 ```
 Drop variables with with near zero variance
@@ -148,23 +150,28 @@ summary(re_model)
 describe.factor(AMAData_analysis_complete$AMA)
 
 summary(re_model)
-
-logit_model = glm(AMA ~  scale(AgeAt_ASSESS_Date, center = TRUE, scale = FALSE)*Trouble + Sex_Orien + Race + Gender + Vet + Trouble + Edu, data = AMAData_analysis_complete, family = "binomial")
+AMAData_analysis_complete$Vet = as.factor(AMAData_analysis_complete$Vet)
+logit_model = glm(AMA ~  AgeAt_ASSESS_Date*Trouble + Sex_Orien + Race + Gender + Vet + Trouble + Edu, data = AMAData_analysis_complete, family = "binomial")
 
 summary(logit_model)
-install.packages("interactions")
+```
+Interactions in Freq, because packages are available
+```{r}
 library(interactions)
 
-logit_model_no_vet = glm(AMA ~  AgeAt_ASSESS_Date*Trouble + Sex_Orien + Race + Gender  + Trouble + Edu, data = AMAData_analysis_complete, family = "binomial")
-summary(logit_model_no_vet)
-interact_plot(logit_model_no_vet, pred = "AgeAt_ASSESS_Date", "Trouble", data = AMAData_analysis_complete)
+interact_plot(logit_model, pred = "AgeAt_ASSESS_Date", modx =  "Trouble", data = AMAData_analysis_complete)
 
+sim_slopes(logit_model, pred = "Trouble", modx = "AgeAt_ASSESS_Date", data = AMAData_analysis_complete, jnplot = TRUE)
+
+johnson_neyman(logit_model, pred = "Trouble", modx = "AgeAt_ASSESS_Date", control.fdr = TRUE)
 ```
+
+
 Do Bayesian version and evaluate which of three effects is different each other
 Do linear regression with subset data for interventions (intervention is the difference between parameter estimates)
 ```{r}
 
-model_bayes = MCMClogit(AMA  ~AgeAt_ASSESS_Date + Sex_Orien + Race + Gender+ Vet + Trouble + Edu, data = AMAData_analysis_complete)
+model_bayes = MCMClogit(AMA  ~AgeAt_ASSESS_Date*Trouble + Sex_Orien + Race + Gender+ Vet  + Edu, data = AMAData_analysis_complete)
 
 summary(model_bayes)
 
