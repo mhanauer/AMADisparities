@@ -1,4 +1,3 @@
-# AMADisparities
 ---
 title: "AMA Results"
 output:
@@ -14,11 +13,14 @@ Libraring packages
 library(stringr)
 library(prettyR)
 library(Zelig)
+library(BEST)
+library(MCMCpack)
+library(MissMech)
 ```
 Loading data
 ```{r}
 setwd("S:/Indiana Research & Evaluation/Matthew Hanauer/AMAData")
-AMAData = read.csv("AMAData.csv", header = TRUE, na.strings = c("NULL"))
+AMAData = read.csv("AMAData.csv", header = TRUE, na.strings = c("NULL", "N/A"))
 ```
 Try to look at the variables
 Variables to keep:
@@ -39,43 +41,8 @@ Try with alcohol
 ```{r, include=FALSE}
 dim(AMAData)
 head(AMAData)
-##A292_Q1
-head(AMAData$A292_Q1)
-AMAData$A292_Q1 = factor(AMAData$A292_Q1)
 
 
-Alcohol = str_detect(AMAData$A292_Q1, "Alcohol")
-Heroin =  str_detect(AMAData$A292_Q1, "Heroin")
-Cocaine_Crack = str_detect(AMAData$A292_Q1, "Cocaine/Crack")
-Marijuana_Hashish = str_detect(AMAData$A292_Q1, "Marijuana/Hashish")
-Methamphetamines_Amphetamines = str_detect(AMAData$A292_Q1, "Methamphetamines/Amphetamines")
-Benzodiazepines = str_detect(AMAData$A292_Q1, "Benzodiazepines")
-Percocet = str_detect(AMAData$A292_Q1, "Percocet")
-
-### Add back variables
-AMAData$Alcohol = Alcohol
-AMAData$Heroin = Heroin
-AMAData$Cocaine_Crack = Cocaine_Crack
-AMAData$Marijuana_Hashish = Marijuana_Hashish
-AMAData$Methamphetamines_Amphetamines = Methamphetamines_Amphetamines
-AMAData$Benzodiazepines = Benzodiazepines
-AMAData$Percocet = Percocet
-
-##Look at the rest of the variables and see which ones are not dicot
-##DischargeType
-describe(AMAData)
-dim(AMAData)
-
-###Deal with any data errors before this point. 
-###Get count and percentages for the descirptives 
-describe.factor(AMAData$A298_Q5)
-describe.factor(AMAData$A298_Q6)
-describe.factor(AMAData$A298_Q7)
-describe.factor(AMAData$A294_Q41)
-describe.factor(AMAData$A294_Q57)
-describe.factor(AMAData$A294_Q137)
-describe.factor(AMAData$A297_Q5)
-dim(AMAData)
 
 #A298_Q5 = Sex_Orien: Hetero versus all else including not stated
 ### Non-hetero
@@ -97,13 +64,6 @@ describe.factor(AMAData$A298_Q7)
 Gender = ifelse(AMAData$A298_Q7 == "Female", 1, 0)
 AMAData$Gender = Gender
 
-#A294_Q41
-#Parents or Partner and everything else 0
-describe.factor(AMAData$A294_Q41)
-Parents = ifelse(AMAData$A294_Q41 == "Parents", 1, 0)
-Partner = ifelse(AMAData$A294_Q41 == "Partner", 1, 0)
-AMAData$Parents= Parents
-AMAData$Partner = Partner
 
 #A294_Q57, use autocontent analysis to figure this out
 #describe.factor(AMAData$A294_Q57)
@@ -112,104 +72,65 @@ AMAData$Partner = Partner
 #A294_Q137
 #None = 1 versus everything else 
 describe.factor(AMAData$A294_Q137)
-No_trouble = ifelse(AMAData$A294_Q137 == "None", 1, 0)
-AMAData$No_trouble = No_trouble
-describe.factor(AMAData$No_trouble)
-
-#A297_Q5
-#If Polysubstance = 1 all else 0
-describe.factor(AMAData$A297_Q5)
-Polysubstance = str_detect(AMAData$A297_Q5, "Polysubstance")
-describe.factor(Polysubstance)
-AMAData$Polysubstance = Polysubstance
+Trouble = ifelse(AMAData$A294_Q137 == "None", 0, 1)
+AMAData$Trouble = Trouble
+describe.factor(AMAData$Trouble)
 
 #DischargeType
 #AMA Against Medical Advice = 1; completed program is 0
 describe.factor(AMAData$DischargeType)
-AMA = ifelse(AMAData$DischargeType == "AMA Against Medical Advice", "Class1", "Class2")
+AMA = ifelse(AMAData$DischargeType == "AMA Against Medical Advice", 1, 0)
 AMAData$AMA = AMA
 describe.factor(AMA)
 
-#Now get rid of old variables and extra variables
-AMAData$A292_Q1 = NULL 
-AMAData$A298_Q5 = NULL
-AMAData$A298_Q6 = NULL
-AMAData$A294_Q137 = NULL
-AMAData$A297_Q5 = NULL
-AMAData$DischargeType = NULL
-### Keep this null for now
-AMAData$A294_Q57 = NULL
-AMAData$A294_Q41 = NULL
-AMAData$A298_Q7 = NULL
-describe.factor(AMAData$ClientEncounter_NUM)
-head(AMAData$A294_Q57)
-### Don't need ClientID can create training and test on client encounter
-#ClientBiopsychosocial_NUM, 
+describe.factor(AMAData$Edu)
+### Those with less than and a high school versus everyone else so 1 and 0 versus everyone else
+AMAData$Edu = ifelse(AMAData$Edu < 1,1,0)
+describe.factor(AMAData$Edu)
 
-#Need to recode the Yes No variables into 1 and zero's
-#These variables come after the sequence
-#A294_Q233, A297_Q1, A297_Q3
+### Now get veteran status
+describe.factor(AMAData$A294_Q108)
+
+Vet = data.frame(Vet =AMAData$A294_Q108)
+AMAData$Vet = apply(Vet, 2, function(x){ifelse(x == "Yes", 1, 0)})
+describe.factor(AMAData$Vet)
+### Just grab the variables that you want
 
 head(AMAData)
-head(AMAData[c(13:55, 58:59)])
-AMAData_bin_con = AMAData[c(13:55, 58:59)]
-sum(is.na(AMAData_bin_con))
+describe(AMAData$AgeAt_ASSESS_Date)
+range(AMAData$AgeAt_ASSESS_Date, na.rm = TRUE)
+#### Some values below 18 need to get rid of them
+AMAData$AgeAt_ASSESS_Date = ifelse(AMAData$AgeAt_ASSESS_Date < 18, NA, AMAData$AgeAt_ASSESS_Date)
+range(AMAData$AgeAt_ASSESS_Date, na.rm = TRUE)
 
+AMAData_analysis = AMAData[c("AgeAt_ASSESS_Date", "Sex_Orien", "Race", "Gender", "Trouble", "Edu", "Vet", "AMA")]
 
-AMAData_bin_con = apply(AMAData_bin_con, 2, function(x){ifelse(x == "Yes", 1, 0)})
-describe(AMAData_bin_con)
-sum(is.na(AMAData_bin_con))
+describe.factor(AMAData_analysis$Edu)
 
-#Ok now get the corrected binary data back with the original data
-head(AMAData)
-
-### Data I want to keep from the first data set to combine with the second
-AMAData_keep = AMAData[c(2, 5, 60:74)]
-head(AMAData)
-
-AMAData_analysis = data.frame(AMAData_keep, AMAData_bin_con)
-head(AMAData_analysis)
-
-#### Changeing trues to ones and false to zeros for later data analysis
-AMAData_analysis_true =AMAData_analysis[,3:16]
-head(AMAData_analysis_true)
-AMAData_analysis_true = apply(AMAData_analysis_true,2, function(x){as.numeric(x)})
-head(AMAData_analysis_true)
-
-AMAData_analysis[,3:16] = AMAData_analysis_true
-head(AMAData_analysis)
 ```
 
 Now do missing data analysis
 ```{r}
 AMAData_analysis_complete = na.omit(AMAData_analysis)
 dim(AMAData_analysis_complete)
-
-1-dim(AMAData_analysis_complete)[1]/dim(AMAData_analysis)[1]
-
-AMAData_analysis_complete$AMA = factor(AMAData_analysis_complete$AMA)
+1-(dim(AMAData_analysis_complete)[1]/dim(AMAData_analysis)[1])
+TestMCARNormality(AMAData_analysis)
 ```
 Drop variables with with near zero variance
 ```{r}
+head(AMAData_analysis_complete)
 lowVarAMA =  nearZeroVar(AMAData_analysis_complete)
 lowVarAMA
-
-describe(AMAData_analysis_complete[c(26, 31, 34, 41, 42, 46, 51, 52, 57)])
-
-AMAData_analysis_complete[c(26, 31, 34, 41, 42, 46, 51, 52, 57)] = NULL
-head(AMAData_analysis_complete)
-
-nearZeroVar(AMAData_analysis_complete)
 ```
-Need a correlation matrix to justify the logistic pca
-
-Pearson's r is fine for two binary variables: https://www.dummies.com/business/customers/associations-between-binary-variables/
+Demographics
+Update this with the missing data and then get a column for missingness by variable
 ```{r}
-library(psych)
-head(AMAData_analysis_complete)
-head(AMAData_analysis_complete)
-cor(AMAData_analysis_complete[,-c(17)])
+factor_dat = apply(AMAData_analysis_complete[-c(1)], 2, function(x){factor(x)})
+factor_dat = data.frame(factor_dat)
+describe(factor_dat)
 
+describe(AMAData_analysis_complete[c(1)])
+sd(AMAData_analysis_complete$AgeAt_ASSESS_Date)
 ```
 Now try Rare event
 
@@ -219,65 +140,68 @@ Gender = Female
 Trouble = Trouble ==1
 
 ```{r}
-AMAData_analysis_complete$AMA = ifelse(AMAData_analysis_complete$AMA == "Class1", 1, 0)
-AMAData_analysis_complete$Trouble = ifelse(AMAData_analysis_complete$No_trouble == 1, 0,1)
+AMAData_analysis_complete$AMA = as.factor(AMAData_analysis_complete$AMA)
+write.csv(AMAData_analysis_complete, "AMAData_analysis_complete.csv", row.names = FALSE)
 
-re_model = zelig(AMA ~ AgeAt_ASSESS_Date + Sex_Orien + Race + Gender + Parents + Partner + No_trouble, model = "relogit", data = AMAData_analysis_complete)
+AMAData_analysis_complete = read.csv("AMAData_analysis_complete.csv", header = TRUE)
+
+re_model = zelig(AMA ~ AgeAt_ASSESS_Date + Sex_Orien + Race + Gender + Vet + Trouble + Edu, model = "relogit", data = AMAData_analysis_complete)
+summary(re_model)
+describe.factor(AMAData_analysis_complete$AMA)
 
 summary(re_model)
-
-logit_model = glm(AMA ~ AgeAt_ASSESS_Date + Sex_Orien + Race + Gender + Parents + Partner + No_trouble, data = AMAData_analysis_complete, family = "binomial")
+AMAData_analysis_complete$Vet = as.factor(AMAData_analysis_complete$Vet)
+logit_model = glm(AMA ~  AgeAt_ASSESS_Date*Trouble + Sex_Orien + Race + Gender + Vet + Trouble + Edu, data = AMAData_analysis_complete, family = "binomial")
 
 summary(logit_model)
 ```
-Try drug variables
-This demonstrates that even if you drop insignificant variables there is no change in the significant ones
+Interactions in Freq, because packages are available
 ```{r}
-re_model_final = zelig(AMA ~ Sex_Orien + Race + Gender + Parents + Partner + Polysubstance + Alcohol + Heroin + Cocaine_Crack + Marijuana_Hashish + Methamphetamines_Amphetamines + Benzodiazepines + Percocet, model = "relogit", data = AMAData_analysis_complete)
+library(interactions)
 
-summary(re_model_final)
+interact_plot(logit_model, pred = "AgeAt_ASSESS_Date", modx =  "Trouble", data = AMAData_analysis_complete)
 
+sim_slopes(logit_model, pred = "Trouble", modx = "AgeAt_ASSESS_Date", data = AMAData_analysis_complete, jnplot = TRUE)
 
-re_model_final = zelig(AMA ~ Sex_Orien + Race + Gender + Parents + Partner + Polysubstance + Alcohol + Heroin + Cocaine_Crack  + Benzodiazepines + Percocet, model = "relogit", data = AMAData_analysis_complete)
-
-summary(re_model_final)
-
-
-re_model_final = zelig(AMA ~ Sex_Orien + Race + Gender + Parents + Partner  + Alcohol + Heroin + Cocaine_Crack  + Benzodiazepines + Percocet, model = "relogit", data = AMAData_analysis_complete)
-
-summary(re_model_final)
-
-
-re_model_final = zelig(AMA ~ Sex_Orien + Race + Gender + Parents + Partner  + Alcohol + Heroin   + Benzodiazepines + Percocet, model = "relogit", data = AMAData_analysis_complete)
-
-summary(re_model_final)
+johnson_neyman(logit_model, pred = "Trouble", modx = "AgeAt_ASSESS_Date", control.fdr = TRUE)
 ```
-Testing the effect of adding substances and it looks like it takes away age
-```{r}
-re_model_final = zelig(AMA ~ AgeAt_ASSESS_Date + Sex_Orien + Race + Gender + Parents + Partner + Trouble + Polysubstance + Alcohol + Heroin + Cocaine_Crack + Marijuana_Hashish + Methamphetamines_Amphetamines + Benzodiazepines + Percocet , model = "relogit", data = AMAData_analysis_complete)
 
-summary(re_model_final)
 
-re_model_final = zelig(AMA ~ AgeAt_ASSESS_Date + Sex_Orien + Race + Gender + Parents + Partner + Trouble, model = "relogit", data = AMAData_analysis_complete)
-
-summary(re_model_final)
-
-```
-Final Model
-```{r}
-re_model_final = zelig(AMA ~ AgeAt_ASSESS_Date + Sex_Orien + Race + Gender + Parents + Partner + Trouble, model = "relogit", data = AMAData_analysis_complete)
-
-summary(re_model_final)
-```
-Logit Final Model
-Do some sensitivty analyses
-```{r}
-model_final = glm(AMA  ~ AgeAt_ASSESS_Date + Sex_Orien + Race + Gender + Parents + Partner + Trouble, family = "binomial", data = AMAData_analysis_complete)
-
-summary(model_final)
-```
 Do Bayesian version and evaluate which of three effects is different each other
 Do linear regression with subset data for interventions (intervention is the difference between parameter estimates)
+```{r}
+
+model_bayes = MCMClogit(AMA  ~AgeAt_ASSESS_Date*Trouble + Sex_Orien + Race + Gender+ Vet  + Edu, data = AMAData_analysis_complete)
+
+summary(model_bayes)
+
+```
+Get quantiles to get the odds ratios to evaluate practically significant differences
+```{r}
+sum_model_bayes = summary(model_bayes)
+quant_exp= exp(sum_model_bayes$quantiles)
+quant_exp
+```
+Now grab the distributions of the Sex_Orien and gender
+```{r}
+sex_orien_gender_posts = model_bayes[,c(3,5)]
+sex_orien_gender_posts = data.frame(sex_orien_gender_posts)
+head(sex_orien_gender_posts)
+
+
+sex_orien_gender_posts = sex_orien_gender_posts[sample(nrow(sex_orien_gender_posts),500),]
+sex_orien_gender_posts$Sex_Orien = exp(sex_orien_gender_posts$Sex_Orien)
+sex_orien_gender_posts$Gender = exp(sex_orien_gender_posts$Gender)
+
+describe.factor(sex_orien_gender_posts$Gender)
+
+test_Best =  BESTmcmc(sex_orien_gender_posts$Sex_Orien, sex_orien_gender_posts$Gender)
+test_Best
+plot(test_Best)
+
+summary(test_Best)
+
+```
 
 
 ################################################################
@@ -439,14 +363,3 @@ re_model_Gender_No_trouble = zelig(AMA ~ Gender*No_trouble + Sex_Orien  + Race +
 
 summary(re_model_Gender_No_trouble)
 ```
-
-
-
-
-
-
-
-
-
-
-
