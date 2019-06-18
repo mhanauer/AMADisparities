@@ -360,6 +360,5 @@ Try interaction terms
 Gender and race
 ```{r}
 re_model_Gender_No_trouble = zelig(AMA ~ Gender*No_trouble + Sex_Orien  + Race + Gender + Partner + Parents+ AgeAt_ASSESS_Date*No_trouble, model = "relogit", data = AMAData_analysis_complete)
-
 summary(re_model_Gender_No_trouble)
 ```
