@@ -139,6 +139,7 @@ describe(factor_dat)
 describe.factor(factor_dat$Edu)
 describe(AMAData_analysis_complete[c(1)])
 sd(AMAData_analysis_complete$AgeAt_ASSESS_Date)
+mean(AMAData_analysis_complete$AgeAt_ASSESS_Date)
 ```
 Now try Rare event
 
@@ -152,18 +153,28 @@ AMAData_analysis_complete$AMA = as.factor(AMAData_analysis_complete$AMA)
 write.csv(AMAData_analysis_complete, "AMAData_analysis_complete.csv", row.names = FALSE)
 
 AMAData_analysis_complete = read.csv("AMAData_analysis_complete.csv", header = TRUE)
+AMAData_analysis_complete$age_center = scale(AMAData_analysis_complete$AgeAt_ASSESS_Date, center = TRUE, scale = FALSE)
 
 AMAData_analysis_complete$Vet = as.factor(AMAData_analysis_complete$Vet)
-logit_model = glm(AMA ~  AgeAt_ASSESS_Date*Trouble + Sex_Orien  + Black + Hispanic+ Another + Gender + Vet + Trouble + Edu, data = AMAData_analysis_complete, family = "binomial")
+logit_model = glm(AMA ~  age_center*Trouble + Sex_Orien  + Black + Hispanic+ Another + Gender + Vet  + Edu, data = AMAData_analysis_complete, family = "binomial")
 summary(logit_model)
 library(car)
 vif(logit_model)
+logit_model_no_center = glm(AMA ~  AgeAt_ASSESS_Date*Trouble + Sex_Orien  + Black + Hispanic+ Another + Gender + Vet  + Edu, data = AMAData_analysis_complete, family = "binomial")
+summary(logit_model_no_center)
+#0.615631
+#Trouble            -0.598606   0.270050  -2.217  0.02665 * 
+
 ```
 Interactions in Freq, because packages are available
 ```{r}
 library(interactions)
+AMAData_analysis_complete
+interact_plot(logit_model, pred = "age_center", modx =  "Trouble", data = AMAData_analysis_complete)
 
-johnson_neyman(logit_model, pred = "Trouble", modx = "AgeAt_ASSESS_Date", control.fdr = TRUE)
+sim_slopes(logit_model, pred = "Trouble", modx = "AgeAt_ASSESS_Date", data = AMAData_analysis_complete, jnplot = TRUE)
+
+johnson_neyman(logit_model, pred = "Trouble", modx = "age_center", control.fdr = TRUE)
 ```
 
 
@@ -171,7 +182,7 @@ Do Bayesian version and evaluate which of three effects is different each other
 Do linear regression with subset data for interventions (intervention is the difference between parameter estimates)
 ```{r}
 
-model_bayes = MCMClogit(AMA  ~ Sex_Orien  + Black + Hispanic + Another  + Gender + Edu+ AgeAt_ASSESS_Date +Vet + Trouble+ AgeAt_ASSESS_Date*Trouble, data = AMAData_analysis_complete)
+model_bayes = MCMClogit(AMA  ~ Sex_Orien  + Black + Hispanic + Another  + Gender + Edu+ age_center +Vet + Trouble+ age_center*Trouble, data = AMAData_analysis_complete)
 
 summary(model_bayes)
 sum_bayes = summary(model_bayes)
@@ -180,6 +191,13 @@ sum_bayes_exp =  round(data.frame(par_est = sum_bayes$statistics[,1], se = sum_b
 sum_bayes_exp = sum_bayes_exp[-1,]
 sum_bayes_exp
 write.csv(sum_bayes_exp, "sum_bayes_exp.csv", row.names = FALSE)
+```
+Check the change in model
+
+```{r}
+summary(model_bayes)
+model_bayes_no_center = MCMClogit(AMA  ~ Sex_Orien  + Black + Hispanic + Another  + Gender + Edu+ AgeAt_ASSESS_Date +Vet + Trouble+ AgeAt_ASSESS_Date*Trouble, data = AMAData_analysis_complete)
+summary(model_bayes_no_center)
 ```
 
 
